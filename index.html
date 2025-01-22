@@ -20,14 +20,19 @@
         }
         #info {
             margin: 10px;
-            font-size: 20px;
+            font-size: 18px;
             color: #495057;
+        }
+        #steps {
+            margin: 5px;
+            font-size: 16px;
+            color: #6c757d;
         }
         canvas {
             border: 2px solid #343a40;
             background-color: #f0d9b5;
-            margin-top: 20px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
         }
         .buttons {
             margin-top: 10px;
@@ -55,7 +60,8 @@
 <body>
     <h1>五子棋</h1>
     <div id="info">轮到玩家1（黑棋）</div>
-    <canvas id="board" width="600" height="600"></canvas>
+    <div id="steps">当前步数：0</div>
+    <canvas id="board"></canvas>
     <div class="buttons">
         <button id="undo">悔棋</button>
         <button id="restart">重新开始</button>

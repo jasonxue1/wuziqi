@@ -1,16 +1,23 @@
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
 const info = document.getElementById('info');
+const stepsDisplay = document.getElementById('steps');
 const restartButton = document.getElementById('restart');
 const undoButton = document.getElementById('undo');
 
 // 棋盘配置
-const size = 15; // 棋盘格数
-const cellSize = canvas.width / size;
+const size = 19; // 棋盘格数
+let boardSize = Math.min(window.innerWidth * 0.9, 600); // 棋盘大小随屏幕宽度自适应，最大600px
+canvas.width = canvas.height = boardSize;
+const cellSize = boardSize / size;
+
 let board = Array.from({ length: size }, () => Array(size).fill(0));
 let moveHistory = []; // 记录每一步的落子
 let currentPlayer = 1; // 1代表黑棋，2代表白棋
 let gameOver = false;
+
+// 步数计数
+let steps = 0;
 
 // 绘制棋盘
 function drawBoard() {
@@ -55,6 +62,8 @@ canvas.addEventListener('click', (e) => {
         board[y][x] = currentPlayer;
         moveHistory.push({ x, y, player: currentPlayer }); // 记录落子历史
         drawPiece(x, y, currentPlayer);
+        steps++;
+        stepsDisplay.textContent = `当前步数：${steps}`;
 
         if (checkWin(x, y, currentPlayer)) {
             info.textContent = `玩家${currentPlayer}获胜！🎉`;
@@ -103,6 +112,8 @@ undoButton.addEventListener('click', () => {
     const lastMove = moveHistory.pop(); // 移除最后一步
     board[lastMove.y][lastMove.x] = 0; // 清空棋盘对应位置
     currentPlayer = lastMove.player; // 恢复到悔棋前的玩家
+    steps--;
+    stepsDisplay.textContent = `当前步数：${steps}`;
     gameOver = false; // 恢复游戏状态
     info.textContent = `轮到玩家${currentPlayer}（${currentPlayer === 1 ? '黑棋' : '白棋'}）`;
     drawBoard(); // 重绘棋盘和棋子
@@ -113,8 +124,10 @@ restartButton.addEventListener('click', () => {
     board = Array.from({ length: size }, () => Array(size).fill(0));
     moveHistory = [];
     currentPlayer = 1;
+    steps = 0;
     gameOver = false;
     info.textContent = '轮到玩家1（黑棋）';
+    stepsDisplay.textContent = '当前步数：0';
     drawBoard();
 });
 
