@@ -1,72 +1,250 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>五子棋</title>
-    <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            font-family: 'Arial', sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f8f9fa;
-        }
-        h1 {
-            margin-top: 20px;
-            color: #343a40;
-        }
-        #info {
-            margin: 10px;
-            font-size: 18px;
-            color: #495057;
-        }
-        #steps {
-            margin: 5px;
-            font-size: 16px;
-            color: #6c757d;
-        }
-        canvas {
-            border: 2px solid #343a40;
-            background-color: #f0d9b5;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            margin-top: 20px;
-        }
-        .buttons {
-            margin-top: 10px;
-        }
-        button {
-            margin: 5px;
-            padding: 10px 20px;
-            font-size: 16px;
-            color: #fff;
-            background-color: #007bff;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        button:disabled {
-            background-color: #6c757d;
-            cursor: not-allowed;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <title>五子棋</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      text-align: center;
+      font-family: sans-serif;
+    }
+    h1 {
+      margin: 1rem 0 0.5rem;
+    }
+    #gameContainer {
+      display: inline-block;
+      position: relative;
+    }
+    #gomokuCanvas {
+      background-color: #f1c27d; /* 棋盘背景色，可根据需要修改 */
+      cursor: pointer;
+    }
+    .control-btn {
+      margin: 1rem;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    #info {
+      margin-top: 1rem;
+      font-size: 1.2rem;
+    }
+  </style>
 </head>
 <body>
-    <h1>五子棋</h1>
-    <div id="info">轮到玩家1（黑棋）</div>
-    <div id="steps">当前步数：0</div>
-    <canvas id="board"></canvas>
-    <div class="buttons">
-        <button id="undo">悔棋</button>
-        <button id="restart">重新开始</button>
-    </div>
+  <h1>五子棋</h1>
+  <div id="gameContainer">
+    <canvas id="gomokuCanvas" width="600" height="600"></canvas>
+  </div>
+  <div>
+    <button class="control-btn" id="restartBtn">重新开始</button>
+    <button class="control-btn" id="undoBtn">悔棋</button>
+  </div>
+  <div id="info">
+    当前步数：<span id="stepCount">0</span>，
+    轮到 <span id="currentPlayerText">黑棋</span>
+  </div>
+  
+  <script>
+    // ======== 配置部分 ========
+    const BOARD_SIZE = 15;          // 15×15 的棋盘
+    const CELL_SIZE = 40;           // 每格大小（像素）
+    const STONE_RADIUS = 15;        // 棋子半径（像素）
 
-    <script src="game.js"></script>
+    // ======== 全局变量 ========
+    let board = [];                 // 用二维数组表示棋盘状态：0=空，1=黑棋，2=白棋
+    let currentPlayer = 1;          // 当前玩家：1=黑棋，2=白棋
+    let stepCount = 0;              // 已落子数
+    const moves = [];               // 落子记录栈，用于悔棋
+    
+    const canvas = document.getElementById("gomokuCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // ======== 初始化棋盘数组 ========
+    function initBoard() {
+      board = [];
+      for (let i = 0; i < BOARD_SIZE; i++) {
+        board[i] = [];
+        for (let j = 0; j < BOARD_SIZE; j++) {
+          board[i][j] = 0;
+        }
+      }
+    }
+
+    // ======== 绘制棋盘 ========
+    function drawBoard() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 画线（BOARD_SIZE 条横线和竖线）
+      ctx.strokeStyle = "#000000";
+      for (let i = 0; i < BOARD_SIZE; i++) {
+        // 横线
+        ctx.beginPath();
+        ctx.moveTo(CELL_SIZE / 2, CELL_SIZE / 2 + i * CELL_SIZE);
+        ctx.lineTo(CELL_SIZE / 2 + (BOARD_SIZE - 1) * CELL_SIZE, CELL_SIZE / 2 + i * CELL_SIZE);
+        ctx.stroke();
+        // 竖线
+        ctx.beginPath();
+        ctx.moveTo(CELL_SIZE / 2 + i * CELL_SIZE, CELL_SIZE / 2);
+        ctx.lineTo(CELL_SIZE / 2 + i * CELL_SIZE, CELL_SIZE / 2 + (BOARD_SIZE - 1) * CELL_SIZE);
+        ctx.stroke();
+      }
+
+      // 绘制已经落下的棋子
+      for (let r = 0; r < BOARD_SIZE; r++) {
+        for (let c = 0; c < BOARD_SIZE; c++) {
+          if (board[r][c] !== 0) {
+            drawStone(r, c, board[r][c]);
+          }
+        }
+      }
+    }
+
+    // ======== 绘制单个棋子 ========
+    function drawStone(row, col, player) {
+      ctx.beginPath();
+      const x = CELL_SIZE / 2 + col * CELL_SIZE;
+      const y = CELL_SIZE / 2 + row * CELL_SIZE;
+      ctx.arc(x, y, STONE_RADIUS, 0, 2 * Math.PI);
+      
+      // 棋子颜色
+      if (player === 1) {
+        ctx.fillStyle = "#000000"; // 黑棋
+      } else {
+        ctx.fillStyle = "#FFFFFF"; // 白棋
+      }
+      ctx.fill();
+
+      // 给白棋画一个边框，视觉上更清晰
+      if (player === 2) {
+        ctx.strokeStyle = "#000000";
+        ctx.stroke();
+      }
+    }
+
+    // ======== 点击落子事件 ========
+    canvas.addEventListener("click", function (e) {
+      const rect = canvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+      
+      // 计算在哪个格子上
+      const col = Math.floor((clickX - CELL_SIZE / 2) / CELL_SIZE + 0.5);
+      const row = Math.floor((clickY - CELL_SIZE / 2) / CELL_SIZE + 0.5);
+
+      // 判断是否在棋盘范围内
+      if (row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE) {
+        return;
+      }
+      
+      // 判断是否已经有棋子
+      if (board[row][col] !== 0) {
+        return;
+      }
+      
+      // 正常落子
+      board[row][col] = currentPlayer;
+      stepCount++;
+
+      // 记录这步操作(用于悔棋)
+      moves.push({ row, col, player: currentPlayer });
+
+      // 重新绘制
+      drawBoard();
+
+      // 检查是否胜利
+      if (checkWin(row, col, currentPlayer)) {
+        alert((currentPlayer === 1 ? "黑棋" : "白棋") + " 胜利！点击“重新开始”可重来。");
+        // 若想结束后禁手，可加个变量判断，或移除点击事件。本示例直接弹窗提示
+        return;
+      }
+
+      // 切换玩家
+      currentPlayer = (currentPlayer === 1 ? 2 : 1);
+      updateInfo();
+    });
+
+    // ======== 胜负判断 ========
+    // 检查该位置的横/竖/两条对角线是否有 5 连
+    function checkWin(row, col, player) {
+      // 给定方向(dx, dy)，统计连续的同色棋子数量
+      function countSame(dx, dy) {
+        let count = 1; // 先包含自己
+
+        // 正方向
+        let r = row + dx;
+        let c = col + dy;
+        while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c] === player) {
+          count++;
+          r += dx;
+          c += dy;
+        }
+
+        // 反方向
+        r = row - dx;
+        c = col - dy;
+        while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && board[r][c] === player) {
+          count++;
+          r -= dx;
+          c -= dy;
+        }
+        return count;
+      }
+
+      // 检测横(0,1)、竖(1,0)、主对角(1,1)、副对角(1,-1)
+      if (countSame(0, 1) >= 5) return true;
+      if (countSame(1, 0) >= 5) return true;
+      if (countSame(1, 1) >= 5) return true;
+      if (countSame(1, -1) >= 5) return true;
+      return false;
+    }
+
+    // ======== 更新界面上文字信息 ========
+    function updateInfo() {
+      document.getElementById("stepCount").textContent = stepCount;
+      document.getElementById("currentPlayerText").textContent =
+        currentPlayer === 1 ? "黑棋" : "白棋";
+    }
+
+    // ======== 重新开始 ========
+    document.getElementById("restartBtn").addEventListener("click", function () {
+      initBoard();
+      currentPlayer = 1;
+      stepCount = 0;
+      moves.length = 0; // 清空落子记录
+      drawBoard();
+      updateInfo();
+    });
+
+    // ======== 悔棋功能 ========
+    document.getElementById("undoBtn").addEventListener("click", function () {
+      if (moves.length === 0) {
+        alert("还没有落子，无法悔棋！");
+        return;
+      }
+      
+      // 取出最后一次落子信息
+      const lastMove = moves.pop();
+      const { row, col, player } = lastMove;
+
+      // 从棋盘上移除该落子
+      board[row][col] = 0;
+      stepCount--;
+
+      // 恢复当前玩家（就是刚才落子的那个人）
+      currentPlayer = player;
+      
+      // 重绘棋盘
+      drawBoard();
+      updateInfo();
+    });
+
+    // ======== 初始化并第一次渲染 ========
+    initBoard();
+    drawBoard();
+    updateInfo();
+  </script>
 </body>
 </html>
